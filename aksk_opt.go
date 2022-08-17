@@ -6,18 +6,23 @@ const (
 	defaultSignatureKey  = "signature"
 )
 
+type SecretKeyProvider interface {
+	GetSecretKey(accessKey string) (secretKey string, err error)
+}
+
 // Option is ak/sk option.
 type Option func(*options)
 
 // options
 type options struct {
-	accessKey     string
-	secretKey     string
-	authHeaderKey string
-	expiresKey    string
-	signatureKey  string
-	encodeUrl     bool
-	extraPayload  map[string]interface{}
+	accessKey         string
+	secretKey         string
+	authHeaderKey     string
+	expiresKey        string
+	signatureKey      string
+	encodeUrl         bool
+	extraPayload      map[string]interface{}
+	secretKeyProvider SecretKeyProvider
 }
 
 // WithAccessKey set accessKey
@@ -66,6 +71,13 @@ func WithExpiresKey(expiresKey string) Option {
 func WithSignatureKey(signatureKey string) Option {
 	return func(o *options) {
 		o.signatureKey = signatureKey
+	}
+}
+
+// WithSecretKeyProvider set the provider to get the secret key
+func WithSecretKeyProvider(provider SecretKeyProvider) Option {
+	return func(o *options) {
+		o.secretKeyProvider = provider
 	}
 }
 

@@ -17,6 +17,7 @@ const (
 
 var (
 	ErrMissingAuthorizationHeader = errors.Unauthorized(reason, "Authorization Header is missing")
+	ErrSecretKeyProviderNotSet    = errors.Unauthorized(reason, "Secret Key Provider Not Set")
 	ErrAuthorizationInvalid       = errors.Unauthorized(reason, "Authorization is invalid")
 	ErrAuthorizationExpired       = errors.Unauthorized(reason, "Authorization has expired")
 	ErrAuthorizationParseFail     = errors.Unauthorized(reason, "Fail to parse Authorization")
@@ -35,6 +36,9 @@ func Server(opts ...Option) middleware.Middleware {
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			if o.secretKeyProvider == nil {
+				return nil, ErrSecretKeyProviderNotSet
+			}
 			if tr, ok := transport.FromServerContext(ctx); ok {
 				// check header with authorizationKey
 				authorization := tr.RequestHeader().Get(o.authHeaderKey)
