@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-kratos/kratos/v2/transport"
 	"regexp"
+	"strings"
 )
 
 func GetDynamicHeaderKey(header transport.Header, baseHeaderKey string) string {
@@ -29,7 +30,7 @@ func GetAccessKeyFromDynamicHeaderKey(header transport.Header, baseHeaderKey str
 	if match.MatchString(headerKey) {
 		groupCapture := match.FindAllStringSubmatch(key, -1)[0]
 		if len(groupCapture) == 2 {
-			return headerKey, groupCapture[1]
+			return headerKey, strings.Trim(groupCapture[1], "")
 		}
 	}
 	return headerKey, ""
