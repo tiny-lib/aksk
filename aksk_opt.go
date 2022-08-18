@@ -1,48 +1,28 @@
 package aksk
 
+import "github.com/czyt/aksk/internal/hasher"
+
 const (
 	defaultAuthorization = "Authorization"
-	defaultExpiresKey    = "expires"
-	defaultSignatureKey  = "signature"
+	defaultTimeStampKey  = "ts"
 )
-
-type SecretKeyProvider interface {
-	GetSecretKey(accessKey string) (secretKey string, err error)
-}
 
 // Option is ak/sk option.
 type Option func(*options)
 
 // options
 type options struct {
-	accessKey         string
-	secretKey         string
-	authHeaderKey     string
-	expiresKey        string
-	signatureKey      string
+	baseAuthHeaderKey string
+	timeStampKey      string
 	encodeUrl         bool
-	extraPayload      map[string]interface{}
+	hashHelper        hasher.AkSKHashHelper
 	secretKeyProvider SecretKeyProvider
-}
-
-// WithAccessKey set accessKey
-func WithAccessKey(accessKey string) Option {
-	return func(o *options) {
-		o.accessKey = accessKey
-	}
-}
-
-// WithSecretKey set secretKey
-func WithSecretKey(secretKey string) Option {
-	return func(o *options) {
-		o.secretKey = secretKey
-	}
 }
 
 // WithAuthorizationHeader set 	the authorization header
 func WithAuthorizationHeader(header string) Option {
 	return func(o *options) {
-		o.authHeaderKey = header
+		o.baseAuthHeaderKey = header
 	}
 }
 
@@ -53,24 +33,10 @@ func WithEncodeUrl(encodeUrl bool) Option {
 	}
 }
 
-// WithExtraPayload set extraPayload to allow user put more info in the auth logic
-func WithExtraPayload(extraPayload map[string]interface{}) Option {
+// WithTimeStampKey custom the WithTimeStamp key to fetch the timestamp
+func WithTimeStampKey(timeStamp string) Option {
 	return func(o *options) {
-		o.extraPayload = extraPayload
-	}
-}
-
-// WithExpiresKey custom the expires key
-func WithExpiresKey(expiresKey string) Option {
-	return func(o *options) {
-		o.expiresKey = expiresKey
-	}
-}
-
-// WithSignatureKey custom the signature Key
-func WithSignatureKey(signatureKey string) Option {
-	return func(o *options) {
-		o.signatureKey = signatureKey
+		o.timeStampKey = timeStamp
 	}
 }
 
@@ -81,16 +47,23 @@ func WithSecretKeyProvider(provider SecretKeyProvider) Option {
 	}
 }
 
+// WithHashHelper set the hash helper for hash logic
+func WithHashHelper(helper hasher.AkSKHashHelper) Option {
+	return func(o *options) {
+		o.hashHelper = helper
+	}
+}
+
 func applyDefaultOptions() Option {
 	return func(o *options) {
-		if o.authHeaderKey == "" {
-			o.authHeaderKey = defaultAuthorization
+		if o.baseAuthHeaderKey == "" {
+			o.baseAuthHeaderKey = defaultAuthorization
 		}
-		if o.expiresKey == "" {
-			o.expiresKey = defaultExpiresKey
+		if o.timeStampKey == "" {
+			o.timeStampKey = defaultTimeStampKey
 		}
-		if o.signatureKey == "" {
-			o.signatureKey = defaultSignatureKey
+		if o.hashHelper == nil {
+			o.hashHelper = &hasher.Sha1Hash{}
 		}
 	}
 }

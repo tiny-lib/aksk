@@ -1,4 +1,4 @@
-package encoder
+package encodingutil
 
 import "net/url"
 

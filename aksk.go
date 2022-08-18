@@ -1,32 +1,24 @@
 package aksk
 
 import (
+	"bytes"
 	"context"
-	"github.com/czyt/aksk/internal/builderPool"
-	"github.com/czyt/aksk/internal/encoder"
-	"github.com/go-kratos/kratos/v2/errors"
+	"github.com/czyt/aksk/internal/encodingutil"
+	"github.com/czyt/aksk/internal/header"
+	"github.com/czyt/aksk/internal/signer"
 	"github.com/go-kratos/kratos/v2/middleware"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/go-kratos/kratos/v2/transport/http"
+	"io"
 )
 
 const (
 	// reason holds the error reason.
-	reason string = "UNAUTHORIZED"
+	reason            string = "UNAUTHORIZED"
+	ContentTypeHeader string = "Content-Type"
 )
 
-var (
-	ErrMissingAuthorizationHeader = errors.Unauthorized(reason, "Authorization Header is missing")
-	ErrSecretKeyProviderNotSet    = errors.Unauthorized(reason, "Secret Key Provider Not Set")
-	ErrAuthorizationInvalid       = errors.Unauthorized(reason, "Authorization is invalid")
-	ErrAuthorizationExpired       = errors.Unauthorized(reason, "Authorization has expired")
-	ErrAuthorizationParseFail     = errors.Unauthorized(reason, "Fail to parse Authorization")
-	ErrUnSupportSigningMethod     = errors.Unauthorized(reason, "Wrong signing method")
-	ErrWrongContext               = errors.Unauthorized(reason, "Wrong context for middleware")
-	ErrNeedTokenProvider          = errors.Unauthorized(reason, "Authorization provider is missing")
-	ErrSignToken                  = errors.Unauthorized(reason, "Can not sign Authorization.Is the key correct?")
-	ErrGetKey                     = errors.Unauthorized(reason, "Can not get key while signing Authorization")
-)
+// refer https://www.ietf.org/rfc/rfc2104.txt
 
 func Server(opts ...Option) middleware.Middleware {
 	o := &options{}
@@ -40,24 +32,72 @@ func Server(opts ...Option) middleware.Middleware {
 				return nil, ErrSecretKeyProviderNotSet
 			}
 			if tr, ok := transport.FromServerContext(ctx); ok {
+				var (
+					headerKey      = ""
+					accessKey      = ""
+					secretKey      = ""
+					requestUrl     = ""
+					httpVerb       = ""
+					requestContent = make([]byte, 0)
+					contentType    = ""
+					unixTimeStamp  = ""
+					err            error
+				)
+
 				// check header with authorizationKey
-				authorization := tr.RequestHeader().Get(o.authHeaderKey)
-				if authorization == "" {
+				headerKey, accessKey = header.GetAccessKeyFromDynamicHeaderKey(tr.RequestHeader(), o.baseAuthHeaderKey)
+
+				if headerKey == "" {
 					return nil, ErrMissingAuthorizationHeader
 				}
-				// Authorization: Access=[Access Key Id], ExpireTime=[expire_time], Signature=[signature]
-				// exist:check for signature hex(crypt(Secret Access Key+ExpireTime+URL) ))
-				builder := builderPool.New()
-				builder.WriteString(o.accessKey)
+				originSign := tr.RequestHeader().Get(headerKey)
+				if originSign == "" {
+					return nil, ErrAuthorizationInvalid
+				}
+				targetSign, err := encodingutil.Base64Decode(originSign)
+				if err != nil {
+					return nil, err
+				}
+
+				unixTimeStamp = tr.RequestHeader().Get(o.timeStampKey)
+				contentType = tr.RequestHeader().Get(ContentTypeHeader)
+
 				if hr, ok := tr.(*http.Transport); ok {
 					if o.encodeUrl {
-						builder.WriteString(encoder.UrlEncode(hr.Request().RequestURI))
+						requestUrl = encodingutil.UrlEncode(hr.Request().RequestURI)
 					} else {
-						builder.WriteString(hr.Request().RequestURI)
+						requestUrl = hr.Request().RequestURI
 					}
-
+					requestContent, err = io.ReadAll(hr.Request().Body)
+					if err != nil {
+						return nil, err
+					}
+					// put the body back
+					hr.Request().Body = io.NopCloser(bytes.NewReader(requestContent))
+					httpVerb = hr.Request().Method
 				}
-				// not match :return unauthorized
+
+				// get secret key by access key
+				secretKey, err = o.secretKeyProvider.GetSecretKey(accessKey)
+				if err != nil {
+					return nil, err
+				}
+
+				sign := signer.New([]byte(secretKey),
+					o.hashHelper,
+					signer.WithHttpVerb(httpVerb),
+					signer.WithContent(requestContent),
+					signer.WithContentType(contentType),
+					signer.WithUnixTimeStamp(unixTimeStamp),
+					signer.WithRequestUrl(requestUrl),
+				)
+				checkPass, err := sign.CheckSignValid(targetSign)
+				if err != nil {
+					return nil, err
+				}
+				if !checkPass {
+					return nil, ErrSignCheckFailed
+				}
 
 			}
 			return handler(ctx, req)
