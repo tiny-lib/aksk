@@ -16,7 +16,20 @@ StringToSign = HTTP-Verb + "\n" +
 
 
 ```
-the client `unixTimestamp` should be passed from request header in ms.
+the client `unixTimestamp` should be passed from request header in ms. the middleware has some options:
+```javascript
+    baseAuthHeaderKey string
+	timeStampKey      string
+	encodeUrl         bool
+	hashHelper        hasher.AkSKHashHelper
+	secretKeyProvider SecretKeyProvider
+```
+
+default options:
++ hashHelper `Sha1`
++ baseAuthHeader  `X-API-KEY`
++ timestampKey `ts`
++ url not encoded `encodeUrl = false`
 
 reference:
 + https://github.com/dynuc/gophercloud/blob/master/auth/aksk/aksk_signer.go

@@ -3,7 +3,7 @@ package aksk
 import "github.com/czyt/aksk/internal/hasher"
 
 const (
-	defaultAuthorization = "Authorization"
+	defaultAuthorization = "X-API-KEY"
 	defaultTimeStampKey  = "ts"
 )
 
