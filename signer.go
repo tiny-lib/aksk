@@ -1,8 +1,7 @@
-package signer
+package aksk
 
 import (
 	"encoding/hex"
-	"github.com/czyt/aksk"
 	"github.com/czyt/aksk/internal/builderPool"
 	"github.com/czyt/aksk/internal/hasher"
 )
@@ -76,7 +75,7 @@ func (g *SignGenerator) GetSignContent() (string, error) {
 	//
 	// /*
 	if g.hashHelper == nil {
-		return "", aksk.ErrHashHelperNotSet
+		return "", ErrHashHelperNotSet
 	}
 	builder := builderPool.New()
 	defer builderPool.Release(builder)

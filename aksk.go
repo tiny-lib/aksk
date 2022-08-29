@@ -5,7 +5,6 @@ import (
 	"context"
 	"github.com/czyt/aksk/internal/encodingutil"
 	"github.com/czyt/aksk/internal/header"
-	"github.com/czyt/aksk/internal/signer"
 	"github.com/go-kratos/kratos/v2/middleware"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/go-kratos/kratos/v2/transport/http"
@@ -83,13 +82,13 @@ func Server(opts ...Option) middleware.Middleware {
 					return nil, err
 				}
 
-				sign := signer.New([]byte(secretKey),
+				sign := New([]byte(secretKey),
 					o.hashHelper,
-					signer.WithHttpVerb(httpVerb),
-					signer.WithContent(requestContent),
-					signer.WithContentType(contentType),
-					signer.WithUnixTimeStamp(unixTimeStamp),
-					signer.WithRequestUrl(requestUrl),
+					WithHttpVerb(httpVerb),
+					WithContent(requestContent),
+					WithContentType(contentType),
+					WithUnixTimeStamp(unixTimeStamp),
+					WithRequestUrl(requestUrl),
 				)
 				checkPass, err := sign.CheckSignValid(targetSign)
 				if err != nil {
